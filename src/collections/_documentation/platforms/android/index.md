@@ -1,15 +1,8 @@
 ---
 title: Android
 ---
-{% capture __alert_content -%}
-This version of the Android SDK is in beta. Sentry has been offering an official SDK for Android for years now. If you are looking for the stable LTS support of Sentry, please refer to the 1.x and its [docs]({%- link _documentation/clients/java/integrations.md -%}#android).
-{%- endcapture -%}
-{%- include components/alert.html
-    title="Note"
-    content=__alert_content
-    level="warning"
-%}
 
+<!-- WIZARD android -->
 ## Integrating the SDK
 
 Sentry captures data by using an SDK within your application’s runtime. These are platform-specific and allow Sentry to have a deep understanding of how your app works.
@@ -17,10 +10,17 @@ Sentry captures data by using an SDK within your application’s runtime. These 
 To install the Android SDK, please update your build.gradle file as follows:
 
 ```groovy
+// ADD JCENTER REPOSITORY
+repositories {
+    jcenter()
+}
+
 // ADD COMPATIBILITY OPTIONS TO BE COMPATIBLE WITH JAVA 1.8
-compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+android {
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
 }
 
 // ADD SENTRY ANDROID AS A DEPENDENCY
@@ -28,6 +28,7 @@ dependencies {
     implementation 'io.sentry:sentry-android:{version}'
 }
 ```
+<!-- ENDWIZARD -->
 
 {% capture __alert_content -%}
 For the minimal required API level, see [Requirements](#requirements).
@@ -45,7 +46,9 @@ After you’ve completed setting up a project in Sentry, Sentry will give you a 
 Add your DSN to the manifest file.
 
 ```xml
-<meta-data android:name="io.sentry.dsn" android:value="https://key@sentry.io/123" />
+<application>
+    <meta-data android:name="io.sentry.dsn" android:value="https://key@sentry.io/123" />
+</application>
 ```
 
 ### Verifying Your Setup
@@ -53,14 +56,10 @@ Add your DSN to the manifest file.
 Great! Now that you’ve completed setting up the SDK, maybe you want to quickly test out how Sentry works. Start by capturing an exception:
 
 ```java
-import android.os.Bundle;
-import androidx.appcompat.app.AppCompatActivity;
-import io.sentry.core.Sentry;
-
 public class MyActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        try{
+        try {
             throw new Exception("This is a test.");
         } catch (Exception e) {
             Sentry.captureException(e);
@@ -82,7 +81,9 @@ Initialize the SDK manually when you need to provide additional configuration to
 To initialize the SDK manually, disable the auto initialization. You can do so by adding the following line into your manifest:
 
 ```xml
-<meta-data android:name="io.sentry.auto-init" android:value="false" />
+<application>
+    <meta-data android:name="io.sentry.auto-init" android:value="false" />
+</application>
 ```
 
 The next step is to initialize the SDK directly in your code.
@@ -92,10 +93,6 @@ The SDK can catch errors and crashes only after you've initialized it. So, we re
 Configuration options will be loaded from the manifest so that you don't need to have the static properties in your code. In the `init` method, you can provide a callback that will modify the configuration and also register new options.
 
 ```java
-import android.app.Application;
-import io.sentry.android.core.SentryAndroid;
-import io.sentry.core.SentryLevel;
-
 public class SentryApplication extends Application {
     public void onCreate() {
         super.onCreate();
@@ -139,36 +136,30 @@ Insight into the health of your application doesn't require crashes. You can rep
 ```java
 public class DemoClass {
     /**
-        * An example method that throws an exception.
-        */
+    * An example method that throws an exception.
+    */
     public void unsafeMethod() {
         throw new RuntimeException();
     }
 
     /**
-        * An Example of how to report an error and how to enrich the error context.
-        */
-    void logWithStaticAPI() {
-    /*
-    Record a breadcrumb in the current context, which will be sent
-    with the next event(s). By default, the last 100 breadcrumbs are kept.
+    * An Example of how to report an error and how to enrich the error context.
     */
-        Breadcrumb breadcrumb = new Breadcrumb();
-        breadcrumb.setMessage("User made an action.");
-        Sentry.addBreadcrumb(breadcrumb);
+    public void logWithStaticAPI() {
+        /*
+        Record a breadcrumb in the current context, which will be sent
+        with the next event(s). By default, the last 100 breadcrumbs are kept.
+        */
+        Sentry.addBreadcrumb("User made an action.");
 
         // Set the user in the current context.
-        Sentry.configureScope(
-            scope -> {
-                User user = new User();
-                user.setEmail("hello@sentry.io");
-                scope.setUser(user);
-            });
+        User user = new User();
+        user.setEmail("hello@sentry.io");
+        Sentry.setUser(user);
 
-    /*
-    This sends a simple event to Sentry, with a simple String message.
-    */
-
+        /*
+        This sends a simple event to Sentry, with a simple String message.
+        */
         Sentry.captureMessage("This is a test");
 
         try {
@@ -198,16 +189,16 @@ And declare a dependency in your top-level `build.gradle`:
 ```groovy
 buildscript {
     repositories {
-        jcenter()
+        mavenCentral()
     }
     
     dependencies {
-        classpath 'io.sentry:sentry-android-gradle-plugin:1.7.28'
+        classpath 'io.sentry:sentry-android-gradle-plugin:1.7.31'
     }
 }
 ```
 
-The plugin will automatically generate appropriate ProGuard mapping files and upload them when you run `gradle assemble{BuildVariant}`. For example, `assembleRelease` — Release is the default, but the plugin works for others if you have enabled ProGuard. The credentials for the upload step are loaded via environment variables.
+The plugin will automatically generate appropriate ProGuard mapping files and upload them when you run `gradle assemble{BuildVariant}`. For example, `assembleRelease` — Release is the default, but the plugin works for others if you have enabled ProGuard/R8. The credentials for the upload step are loaded via environment variables.
 
 For more information, see the [full sentry-cli documentation]({%- link _documentation/cli/configuration.md -%}#configuration-values).
 
@@ -236,90 +227,81 @@ sentry {
     // during a build.  If you disable this, you'll need to manually
     // upload the mapping files with sentry-cli when you do a release.
     autoUpload true
+
+    // Disables or enables the automatic configuration of Native Symbols
+    // for Sentry. This executes sentry-cli automatically so
+    // you don't need to do it manually.
+    // Default is disabled.
+    uploadNativeSymbols false
+
+    // Does or doesn't include the source code of native code for Sentry.
+    // This executes sentry-cli with the --include-sources param. automatically so
+    // you don't need to do it manually.
+    // Default is disabled.
+    includeNativeSources false
 }
 ```
 
-### Manual Integration
-
-If you choose not to use the Gradle integration, you may handle the processing and upload steps manually. However, we highly recommend that you use the Gradle integration, if at all possible.
-
-### ProGuard UUIDs
-
-After ProGuard files generate, you will need to embed the UUIDs of the ProGuard mapping files in a properties file named `sentry-debug-meta.properties` in the assets folder. The Java SDK will look for the UUIDs there to link events to the correct mapping files on the server-side.
-
-Sentry calculates UUIDs for ProGuard files. For more information about how this works, see [ProGuard UUIDs]({%- link _documentation/workflow/debug-files.md -%}#proguard-uuids).
-
-`sentry-cli` can write the `sentry-debug-meta.properties` file for you:
-
-```bash
-sentry-cli upload-proguard \
-    --android-manifest app/build/intermediates/manifests/full/release/AndroidManifest.xml \
-    --write-properties app/build/intermediates/assets/release/sentry-debug-meta.properties \
-    --no-upload \
-    app/build/outputs/mapping/{buildVariant}/mapping.txt
-```
-
-This file needs to be in your APK, so **run the script before the APK is packaged**. You can do that by creating a Gradle task that runs before the dex packaging.
-
-You can, for example, add a Gradle task after the ProGuard step and before the dex packaging. The dex packaging executes `sentry-cli` to validate, process the mapping files, and write the UUIDs into the properties file:
-
-```groovy
-gradle.projectsEvaluated {
-    android.applicationVariants.each { variant ->
-        def variantName = variant.name.capitalize();
-        def proguardTask = project.tasks.findByName(
-            "transformClassesAndResourcesWithProguardFor${variantName}")
-        def dexTask = project.tasks.findByName(
-            "transformClassesWithDexFor${variantName}")
-        def task = project.tasks.create(
-                name: "processSentryProguardFor${variantName}",
-                type: Exec) {
-            workingDir project.rootDir
-            commandLine *[
-                "sentry-cli",
-                "upload-proguard",
-                "--write-properties",
-                "${project.rootDir.toPath()}/app/build/intermediates/assets" +
-                    "/${variant.dirName}/sentry-debug-meta.properties",
-                variant.getMappingFile(),
-                "--no-upload"
-            ]
-        }
-        dexTask.dependsOn task
-        task.dependsOn proguardTask
-    }
-}
-```
-
-Alternatively, you can generate a UUID upfront yourself and then force Sentry to honor that UUID after upload. However, this is **strongly discouraged**.
-
-### Uploading ProGuard Files
-
-Finally, manually upload the ProGuard files with `sentry-cli` as follows:
-
-```bash
-sentry-cli upload-proguard \
-    --android-manifest app/build/intermediates/manifests/full/release/AndroidManifest.xml \
-    app/build/outputs/mapping/{buildVariant}/mapping.txt
-```
+And that's it! Now when you build your app, the plugin will upload the ProGuard/R8 mappings,
+source bundle, and native symbols, as you configured them to Sentry.
 
 ## Releases
 
-To correlate the error reports and crash reports with specific releases of your application, we automatically attach the package name and the version code to every event from the SDK.
+The Sentry Android SDK automatically attaches a release version to every event.
 
-With the releases information, you unlock many new features:
+Once Sentry receives an event with the updated release version, a new release object will be available on the releases page in-app. For more details about formatting your releases, see [Release Version Format](#release-version-format).
 
-- Determine the issue and regressions introduced in a new release
-- Predict which commit caused an issue and who is likely responsible
+With the releases you can:
+
+- Build queries and reports in the [Discover]({%- link _documentation/workflow/discover2/index.md -%}) page to correlate bugs with releases
+- Filter events and issues by the release version directly in the tag search on the Issues and Events pages
+- Check what new issues were introduced with the new release
+
+With the releases and a [GitHub]({%- link _documentation/workflow/integrations/global-integrations.md -%}#github)/[GitLab]({%- link _documentation/workflow/integrations/global-integrations.md -%}#gitlab) integration, you can:
+
+- Determine the issues and regressions introduced in a new release
+- Receive suggestions about which commit caused an issue and who is likely responsible
 - Resolve issues by including the issue number in your commit message
-- Receive email notifications when your code gets deployed
+- Receive email notifications when your code deploys
 
-After configuring your SDK, setting up releases is a 2-step process (recommended for the use of suspect commits):
+Even though releases are automatically created as events come in, to take advantage of the *suspected commits* feature, you need to create the release in Sentry as part of your build process.
+
+Sentry offers a command-line tool to aid with this task. After configuring your SDK, setting up releases is a 2-step process (recommended for the use of suspect commits):
 
 1. [Create Release and Associate Commits](https://docs.sentry.io/workflow/releases/#create-release)
 2. [Tell Sentry When You Deploy a Release](https://docs.sentry.io/workflow/releases/#create-deploy)
 
 For more information, see [Releases Are Better With Commits](https://blog.sentry.io/2017/05/01/release-commits.html).
+
+### Release Version Format
+
+The default format of the release version that is sent with each event from the SDK is:
+
+```
+packageName@versionName+versionCode
+```
+
+Please note that if you're using multiple flavors in your application, the release version will be different for each flavor, and different release objects will be created in-app for each flavor.
+
+If you want to change the release name, you can do it in the `AndroidManifest.xml` or directly in the code. 
+
+The release version can be any random string, but we recommend using a similar format to the default. The default involves having the text identifier of your app connected with the version string using "@" and the last optional suffix dedicated to build or an additional identifier. With this format, the Sentry UI will display a more comprehensive release name. For example, company.demo.app@1.1.1 instead of 1.1.0.
+
+To change the release version in the `AndroidManifest.xml`:
+
+```xml
+<application>
+    <meta-data android:name="io.sentry.release" android:value="io.example@1.1.0" />
+</application>
+```
+
+Or, you can set the release version in your code during the manual initialization of the SDK as described in [Manual Initialization](#manual-initialization).
+
+```java
+SentryAndroid.init(this, options -> {
+    options.setRelease("io.example@1.1.0");
+});
+```
 
 ## Context
 
@@ -346,12 +328,9 @@ Sentry will try its best to accommodate the data you send it, but large context 
 Sending users to Sentry will unlock many features, primarily the ability to drill down into the number of users affecting an issue, as well as to get a broader sense of the quality of the application.
 
 ```java
-Sentry.configureScope(
-    scope -> {
-        User user = new User();
-        user.setUsername("username");
-        scope.setUser(user);
-    });
+User user = new User();
+user.setUsername("username");
+Sentry.setUser(user);
 ```
 
 Users consist of a few critical pieces of information which are used to construct a unique identity in Sentry. Each of these is optional, but one **must** be present for the Sentry SDK to capture the user:
@@ -373,23 +352,18 @@ Tags are key/value pairs assigned to events that can be used for breaking down i
 Most SDKs generally support configuring tags by configuring the scope:
 
 ```java
-Sentry.configureScope(
-    scope -> {
-        scope.setTag("tagKey", "tagValue");
-    });
+Sentry.setTag("tagKey", "tagValue");
 ```
 
 For more information, see [Tagging Events]({%- link _documentation/enriching-error-data/context.md -%}#tagging-events) in Context.
 
 ### Setting the Level
 
-You can set the severity of an event to one of five values: `fatal`, `error`, `warning`, `info`, and `debug`. `error` is the default, `fatal` is the most severe, and `debug` is the least severe.
+You can set the severity of an event to one of five values: `fatal`, `error`, `warning`, `info`, and `debug`.
+`error` is the default, `fatal` is the most severe, and `debug` is the least severe.
 
 ```java
-Sentry.configureScope(
-    scope -> {
-        scope.setLevel(SentryLevel.WARNING);
-    });
+Sentry.setLevel(SentryLevel.WARNING);
 ```
 
 ### Setting the Fingerprint
@@ -470,7 +444,7 @@ Emulator indicator
 
 ### Requirements
 
-For the use of the SDK with the NDK, the minimal required API level is 21. 
+For the use of the SDK with the NDK, the minimal required API level is 16. 
 
 If you want to use the SDK without the NDK, you can: 
 
@@ -482,40 +456,38 @@ To add the sentry-android-core library, you need to provide the following depend
 ```groovy
 // ADD COMPATIBILITY OPTIONS TO BE COMPATIBLE WITH JAVA 1.8
 compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 
 // ADD SENTRY ANDROID AS A DEPENDENCY
 dependencies {
-        implementation 'io.sentry:sentry-android-core::2.0.+'
+    implementation 'io.sentry:sentry-android-core:{version}'
 }
 ```
 
-If you want to use the SDK with the NDK but you still want to support the devices on the API level lower than 21 you can update your manifest as follows:
+If you want to use the SDK with the NDK, but you still want to support the devices on the API level lower than 16, you can update your manifest as follows:
 
 ```xml
+<manifest>
     <!-- Merging strategy for the imported manifests -->
-      <uses-sdk
-            tools:overrideLibrary="io.sentry.android"/>
+    <uses-sdk
+        tools:overrideLibrary="io.sentry.android" />
+</manifest>
 ```
 
-With these changes, the NDK integration is going to be used only on the devices with the API level ≥ 21 and the rest of the devices with API level ≥14, but ≤21 will use just the SDK.
+With these changes:
+- SDK will be enabled on all devices with API level ≥ 14
+- SDK with NDK will be enabled on all devices with API level ≥ 16
 
 ### Breadcrumbs
-
-Sentry will automatically record specific events, to provide context to an error.
 
 You can manually add breadcrumbs on other events or disable breadcrumbs.
 
 ```java
 Breadcrumb breadcrumb = new Breadcrumb();
 breadcrumb.setMessage("Https Call to Sentry");
-
-Map<String,String> data = new HashMap();
-data.put("url","https:\\sentry.io");
-
-breadcrumb.setData(data);
+breadcrumb.setData("url", "https://sentry.io");
 
 Sentry.addBreadcrumb(breadcrumb);
 ```
@@ -534,7 +506,9 @@ The NDK integration is packed with the SDK and enabled out by default with each 
 Alternatively, you can disable the NDK integration by adding the following line into your manifest.
 
 ```xml
-<meta-data android:name="io.sentry.ndk.enable" android:value="false" />
+<application>
+    <meta-data android:name="io.sentry.ndk.enable" android:value="false" />
+</application>
 ```
 
 **Application Not Responding (ANR)** 
@@ -544,13 +518,17 @@ Whenever the main UI thread of the application is blocked for more than four sec
 If you do not want to monitor the ANR, please add the following line into your manifest.
 
 ```xml
-<meta-data android:name="io.sentry.anr.enable" android:value="false" />
+<application>
+    <meta-data android:name="io.sentry.anr.enable" android:value="false" />
+</application>
 ```
 
 If you want to specify how long the thread should be blocked before the ANR is reported, provide the duration in the attribute `io.sentry.anr.timeout-interval-mills` in your manifest.
 
 ```xml
-<meta-data android:name="io.sentry.anr.timeout-interval-mills" android:value="2000" />
+<application>
+    <meta-data android:name="io.sentry.anr.timeout-interval-mills" android:value="2000" />
+</application>
 ```
 
 **“In Application” Stack Frames**
@@ -561,8 +539,8 @@ You can configure which package prefixes belong in your application and which do
 
 ```java
 // This can be set only during the initialization of the SDK.
-SentryAndroid.init(this,options -> {
-        //set all sub packages of java. as packages that do not belong to your application
+SentryAndroid.init(this, options -> {
+        // set all sub packages of java. as packages that do not belong to your application
         options.addInAppExclude("java.");
 
         // set all sub packages of io.sentry as packages that belong to your application
@@ -578,7 +556,7 @@ Sentry exposes a `beforeSend` callback, which can be used to filter out informat
 The callback can be registered during the initialization of the SDK. 
 
 ```java
-SentryAndroid.init(this,options -> {
+SentryAndroid.init(this, options -> {
 
         // Add a callback that will be used before the event is sent to Sentry.
         // With this callback, you can modify the event or, when returning null, also discard the event.
@@ -607,9 +585,15 @@ To do so, use the AndroidNativeBundle Gradle plugin that copies the native libra
 First, we need to declare the dependency in the project build.gradle file:
 
 ```groovy
-dependencies {
-    // Add the line below, the plugin that copies the binaries
-    classpath 'com.ydq.android.gradle.build.tool:nativeBundle:1.0.3'
+buildscript {
+    repositories {
+        jcenter()
+    }
+    
+    dependencies {
+        // Add the line below, the plugin that copies the binaries
+        classpath 'com.ydq.android.gradle.build.tool:nativeBundle:1.0.4'
+    }
 }
 ```
 
@@ -639,7 +623,7 @@ Now you can use the Sentry NDK API just by including the sentry.h in your code:
 extern "C" JNIEXPORT jstring JNICALL
 
 Java_io_sentry_demo_NativeDemo_crash(JNIEnv *env, jclass cls) {
-    __android_log_print(ANDROID_LOG_WARN, "", "About to crash.");
+    __android_log_print(ANDROID_LOG_WARN, "", "Capture a message.");
     sentry_value_t event = sentry_value_new_message_event(
             /*   level */ SENTRY_LEVEL_INFO,
             /*  logger */ "custom",
@@ -655,7 +639,5 @@ Example of uploading all your .so files:
 
 ```bash
 sentry-cli login
-sentry-cli upload-dif -o {YOUR ORGANISATION} -p {PROJECT} build/intermediates/cmake/
-sentry-cli upload-dif -o {YOUR ORGANISATION} -p {PROJECT} build/intermediates/stripped_native_libs
-sentry-cli upload-dif -o {YOUR ORGANISATION} -p {PROJECT} build/intermediates/merged_native_libs/
+sentry-cli upload-dif -o {YOUR ORGANISATION} -p {PROJECT} build/intermediates/merged_native_libs/{buildVariant}
 ```
